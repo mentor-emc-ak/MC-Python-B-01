@@ -3,7 +3,7 @@
 import csv
 from datetime import datetime
 from typing import Optional
-from models import Student, Attendance, Grade, ReportCard
+from models import Student, Attendance, Grade
 from repository import CSVRepository
 
 

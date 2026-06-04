@@ -1,7 +1,6 @@
 """Student Management System — Main CLI Entry Point."""
 
-from models import Student, Attendance, Grade, ReportCard
-from repository import CSVRepository
+from models import Student
 from service import StudentService, AttendanceService, GradeService
 
 
@@ -88,7 +87,9 @@ def delete_student(student_service: StudentService) -> None:
         print(f"   ✗ Student '{student_id}' not found.")
 
 
-def mark_attendance(attendance_service: AttendanceService, student_service: StudentService) -> None:
+def mark_attendance(
+    attendance_service: AttendanceService, student_service: StudentService
+) -> None:
     students = student_service.get_all_students()
     if not students:
         print("   No students registered. Add students first!")
@@ -139,7 +140,9 @@ def add_grade(grade_service: GradeService, student_service: StudentService) -> N
         print(result)
 
 
-def view_report_card(grade_service: GradeService, student_service: StudentService) -> None:
+def view_report_card(
+    grade_service: GradeService, student_service: StudentService
+) -> None:
     students = student_service.get_all_students()
     if not students:
         print("   No students registered.")
@@ -163,10 +166,16 @@ def view_all_grades(grade_service: GradeService) -> None:
     print(f"\n   {'Student ID':<10} {'Subject':<15} {'Score':<8} {'Grade'}")
     print("   " + "-" * 50)
     for g in grades:
-        print(f"   {g['student_id']:<10} {g['subject']:<15} {g['score']:<8.1f} {g['grade']}")
+        print(
+            f"   {g['student_id']:<10} {g['subject']:<15} {g['score']:<8.1f} {g['grade']}"
+        )
 
 
-def show_summary(student_service: StudentService, attendance_service: AttendanceService, grade_service: GradeService) -> None:
+def show_summary(
+    student_service: StudentService,
+    attendance_service: AttendanceService,
+    grade_service: GradeService,
+) -> None:
     students = student_service.get_all_students()
     att_summary = attendance_service.get_summary()
     grade_summary = grade_service.get_summary()
@@ -186,7 +195,7 @@ def main() -> None:
     """Main entry point for the Student Management System."""
     print(Student.greeting())
 
-     # Initialize services
+    # Initialize services
     student_service = StudentService()
     attendance_service = AttendanceService(student_service)
     grade_service = GradeService(student_service)
@@ -223,29 +232,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-print(student_1.get_info())
-print(student_2.get_info())
-print(student_3.get_info())
-
-print(Student.get_student_count())
-
-
-
-
-
-
-class Attendance:
-    """A class to represent attendance records."""
-
-    def __init__(self, student_id, date, status):
-        self.student_id = student_id
-        self.date = date
-        self.status = status
-
-    def get_info(self):
-        """Return attendance information as a string."""
-        return f"Student ID: {self.student_id}, Date: {self.date}, Status: {self.status}"
-
-
-

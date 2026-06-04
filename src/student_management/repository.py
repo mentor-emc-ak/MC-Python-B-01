@@ -2,7 +2,6 @@
 
 import csv
 import os
-from typing import Optional
 
 
 class CSVRepository:

@@ -18,7 +18,7 @@ class Calculator:
     def multiply(a, b):
         return a * b
 
-    @staticmethod   
+    @staticmethod
     def divide(a, b):
         if b == 0:
             raise ValueError("Cannot divide by zero")
