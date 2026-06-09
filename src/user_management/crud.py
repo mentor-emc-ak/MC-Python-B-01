@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 import bcrypt
 
-from models import User
-from schemas import UserCreate, UserUpdate
+from models import Todo, User
+from schemas import TodoCreate, TodoUpdate, UserCreate, UserUpdate
 
 
 def hash_password(password: str) -> str:
@@ -13,8 +13,9 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
+# --- User ---
+
 def get_user(db: Session, user_id: int) -> User | None:
-    # SELECT * FROM users WHERE id = user_id
     return db.query(User).filter(User.id == user_id).first()
 
 
@@ -23,7 +24,6 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
-    # SELECT * FROM users OFFSET skip LIMIT limit
     return db.query(User).offset(skip).limit(limit).all()
 
 
@@ -58,5 +58,43 @@ def delete_user(db: Session, user_id: int) -> bool:
     if not db_user:
         return False
     db.delete(db_user)
+    db.commit()
+    return True
+
+
+# --- Todo ---
+
+def get_todo(db: Session, todo_id: int) -> Todo | None:
+    return db.query(Todo).filter(Todo.id == todo_id).first()
+
+
+def get_todos_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> list[Todo]:
+    return db.query(Todo).filter(Todo.user_id == user_id).offset(skip).limit(limit).all()
+
+
+def create_todo(db: Session, todo: TodoCreate, user_id: int) -> Todo:
+    db_todo = Todo(**todo.model_dump(), user_id=user_id)
+    db.add(db_todo)
+    db.commit()
+    db.refresh(db_todo)
+    return db_todo
+
+
+def update_todo(db: Session, todo_id: int, todo_data: TodoUpdate) -> Todo | None:
+    db_todo = get_todo(db, todo_id)
+    if not db_todo:
+        return None
+    for field, value in todo_data.model_dump(exclude_unset=True).items():
+        setattr(db_todo, field, value)
+    db.commit()
+    db.refresh(db_todo)
+    return db_todo
+
+
+def delete_todo(db: Session, todo_id: int) -> bool:
+    db_todo = get_todo(db, todo_id)
+    if not db_todo:
+        return False
+    db.delete(db_todo)
     db.commit()
     return True
