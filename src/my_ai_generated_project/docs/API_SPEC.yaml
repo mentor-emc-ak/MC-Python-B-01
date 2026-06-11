@@ -1,0 +1,565 @@
+openapi: "3.1.0"
+info:
+  title: MarketPlace API
+  description: B2C e-commerce marketplace REST API built with FastAPI
+  version: "1.0.0"
+  contact:
+    name: akhshyganesh
+    email: akhshy@triwavesolutions.com
+
+servers:
+  - url: https://api.marketplace.example.com/api/v1
+    description: Production
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+security:
+  - FirebaseBearerAuth: []
+
+components:
+  securitySchemes:
+    FirebaseBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID Token
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  schemas:
+    ProblemDetail:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
+        role: { type: string, enum: [buyer, seller, admin] }
+        created_at: { type: string, format: date-time }
+
+    ProductCreate:
+      type: object
+      required: [name, price, stock_quantity, category_id]
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string }
+        price: { type: number, format: float, minimum: 0.01 }
+        stock_quantity: { type: integer, minimum: 0 }
+        category_id: { type: integer }
+        tags: { type: string }
+        image_urls:
+          type: array
+          items: { type: string, format: uri }
+
+    ProductResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        stock_quantity: { type: integer }
+        average_rating: { type: number }
+        review_count: { type: integer }
+        seller_id: { type: string, format: uuid }
+        category_id: { type: integer }
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              position: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    CartItemResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        product_id: { type: string, format: uuid }
+        product_name: { type: string }
+        quantity: { type: integer }
+        unit_price: { type: number }
+        subtotal: { type: number }
+
+    OrderResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, confirmed, shipped, delivered, cancelled] }
+        total_amount: { type: number }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id: { type: string, format: uuid }
+              product_name: { type: string }
+              quantity: { type: integer }
+              unit_price: { type: number }
+              subtotal: { type: number }
+        created_at: { type: string, format: date-time }
+
+    ReviewCreate:
+      type: object
+      required: [rating, order_id]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        title: { type: string, maxLength: 200 }
+        body: { type: string }
+        order_id: { type: string, format: uuid }
+
+    ReviewResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        product_id: { type: string, format: uuid }
+        reviewer_id: { type: string, format: uuid }
+        reviewer_name: { type: string }
+        rating: { type: integer }
+        title: { type: string }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+
+paths:
+
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  # ── Users ──────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string }
+                avatar_url: { type: string }
+                phone: { type: string }
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+
+  /users/me/seller:
+    post:
+      tags: [Users]
+      summary: Upgrade current user to seller role
+      responses:
+        "200":
+          description: User promoted to seller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+
+  # ── Categories ────────────────────────────────────────────────────────
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List all categories
+      security: []
+      responses:
+        "200":
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    slug: { type: string }
+                    parent_id: { type: integer, nullable: true }
+
+  # ── Products ──────────────────────────────────────────────────────────
+  /products:
+    get:
+      tags: [Products]
+      summary: List / search products
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Full-text search query
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: min_price
+          in: query
+          schema: { type: number }
+        - name: max_price
+          in: query
+          schema: { type: number }
+        - name: min_rating
+          in: query
+          schema: { type: number }
+        - name: in_stock
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, price_asc, price_desc, newest, top_rated]
+      responses:
+        "200":
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProductResponse" }
+                  total: { type: integer }
+                  page: { type: integer }
+                  page_size: { type: integer }
+
+    post:
+      tags: [Products]
+      summary: Create a product (seller only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductCreate" }
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+        "403":
+          description: Not a seller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProblemDetail" }
+
+  /products/{product_id}:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Products]
+      summary: Get product detail
+      security: []
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProblemDetail" }
+    patch:
+      tags: [Products]
+      summary: Update product (owner seller or admin)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductCreate" }
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+    delete:
+      tags: [Products]
+      summary: Delete product (owner seller or admin)
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Cart ──────────────────────────────────────────────────────────────
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get current user's cart
+      responses:
+        "200":
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/CartItemResponse" }
+                  total: { type: number }
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: string, format: uuid }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        "201":
+          description: Item added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CartItemResponse" }
+
+  /cart/items/{item_id}:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Cart]
+      summary: Update cart item quantity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Updated cart item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CartItemResponse" }
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      responses:
+        "204":
+          description: Removed
+
+  # ── Orders ────────────────────────────────────────────────────────────
+  /orders/checkout:
+    post:
+      tags: [Orders]
+      summary: Checkout cart and create order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shipping_address]
+              properties:
+                shipping_address: { type: string }
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+        "422":
+          description: Insufficient stock or empty cart
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProblemDetail" }
+
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List current user's orders
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+      responses:
+        "200":
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OrderResponse" }
+                  total: { type: integer }
+
+  /orders/{order_id}:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Orders]
+      summary: Get order detail
+      responses:
+        "200":
+          description: Order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+
+  /orders/{order_id}/cancel:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Orders]
+      summary: Cancel a pending order
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+
+  # ── Reviews ───────────────────────────────────────────────────────────
+  /products/{product_id}/reviews:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Reviews]
+      summary: List reviews for a product
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReviewResponse" }
+                  total: { type: integer }
+    post:
+      tags: [Reviews]
+      summary: Submit a review (verified buyers only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewCreate" }
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewResponse" }
+        "403":
+          description: Not a verified purchaser
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProblemDetail" }
+
+  # ── Notifications ─────────────────────────────────────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: unread_only
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    type: { type: string }
+                    title: { type: string }
+                    body: { type: string }
+                    is_read: { type: boolean }
+                    created_at: { type: string, format: date-time }
+
+  /notifications/{notification_id}/read:
+    parameters:
+      - name: notification_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Notifications]
+      summary: Mark notification as read
+      responses:
+        "204":
+          description: Marked as read
