@@ -1,12 +1,9 @@
-from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+"""
+Project entrypoint — delegates to the FastAPI app inside fastapi-chat-app/.
 
-load_dotenv()
-
-model = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0
-)
-
-response = model.invoke("What is LangChain?")
-print(response.content)
+Run from this directory:
+    cd fastapi-chat-app
+    pip install -r requirements.txt
+    cp .env.example .env   # then add your OPENAI_API_KEY
+    python -m app.main
+"""
