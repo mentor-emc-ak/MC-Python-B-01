@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Products · FastAPI Demo{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Products</h1>
+  <p>Static product catalog served via Jinja2 templates — also available at <a href="/api/products">/api/products</a>.</p>
+</section>
+
+<div class="product-grid">
+  {% for product in products %}
+  <div class="product-card {% if not product.in_stock %}out-of-stock{% endif %}">
+    <div class="product-category">{{ product.category }}</div>
+    <h3 class="product-name">{{ product.name }}</h3>
+    <div class="product-rating">
+      {% for i in range(5) %}
+        {% if i < product.rating | int %}★{% else %}☆{% endif %}
+      {% endfor %}
+      <span class="rating-value">{{ product.rating }}</span>
+    </div>
+    <div class="product-footer">
+      <span class="product-price">${{ "%.2f" | format(product.price) }}</span>
+      <span class="stock-badge {% if product.in_stock %}in-stock{% else %}oos{% endif %}">
+        {% if product.in_stock %}In Stock{% else %}Out of Stock{% endif %}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
