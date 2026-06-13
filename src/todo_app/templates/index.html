@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <header class="header">
+      <div class="header-left">
+        <h1>✅ Todo App</h1>
+        <p class="header-sub">Powered by FastAPI + SQLite3 · Deployed on Railway</p>
+      </div>
+      <div class="stats" id="stats">
+        <span class="stat"><strong id="stat-total">—</strong> total</span>
+        <span class="stat active"><strong id="stat-active">—</strong> active</span>
+        <span class="stat done"><strong id="stat-done">—</strong> done</span>
+      </div>
+    </header>
+
+    <section class="form-section">
+      <form id="todo-form" class="todo-form">
+        <input type="text" id="title" placeholder="What needs to be done?" required maxlength="200" autocomplete="off" />
+        <input type="text" id="description" placeholder="Details (optional)" maxlength="1000" />
+        <select id="priority">
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+        </select>
+        <button type="submit" class="btn-add">Add</button>
+      </form>
+      <p class="form-error hidden" id="form-error"></p>
+    </section>
+
+    <section class="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="active">Active</button>
+      <button class="filter-btn" data-filter="completed">Completed</button>
+    </section>
+
+    <section class="list-section">
+      <div id="loading" class="empty-state">Loading…</div>
+      <div id="empty" class="empty-state hidden">No todos yet. Add one above!</div>
+      <ul id="todo-list"></ul>
+    </section>
+
+  </div>
+
+  <footer class="footer">
+    API: <a href="/api/todos" target="_blank">/api/todos</a> ·
+    <a href="/api/stats" target="_blank">/api/stats</a> ·
+    <a href="/docs" target="_blank">Swagger UI</a>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
